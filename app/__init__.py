@@ -8,8 +8,8 @@ def create_app():
     def health():
         return jsonify(status="ok"), 200
 
-    return app
-
     @app.route("/new-feature")
     def new_feature():
         return jsonify(status="new", data="untested"), 200
+
+    return app
