@@ -12,6 +12,7 @@ def create_app():
     def new_feature():
         return jsonify(status="new", data="untested"), 200
 
+    '''
     @app.route("/users")
     def users():
         return jsonify(users=["Alice", "Bob", "Charlie"]), 200
@@ -40,3 +41,4 @@ def create_app():
             revenue=1500
         ), 200
     return app
+    '''
