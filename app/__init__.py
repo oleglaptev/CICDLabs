@@ -11,3 +11,5 @@ def create_app():
     @app.route("/new-feature")
     def new_feature():
         return jsonify(status="new", data="untested"), 200
+
+    return app
