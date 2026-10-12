@@ -1,0 +1,51 @@
+name: CI Pipeline
+
+# 1
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    # 2
+    runs-on: ubuntu-latest
+
+    steps:
+      # 3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # 5
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 6
+      - name: Run linter (flake8)
+        run: flake8 app tests
+
+      # 7
+      - name: Run tests with coverage
+        run: pytest
+
+      # 8
+      - name: Build step (syntax check)
+        run: python -m py_compile app/*.py
+
+      # 9
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
