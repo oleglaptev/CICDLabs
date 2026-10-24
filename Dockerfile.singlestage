@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Копируем ВСЕ зависимости (включая pytest и flake8)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app/ ./app/
+COPY run.py .
+
+EXPOSE 5000
+
+# Используем встроенный сервер Flask
+CMD ["python", "run.py"]
