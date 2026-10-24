@@ -4,6 +4,7 @@ from flask import Flask, jsonify
 def create_app():
     app = Flask(__name__)
 
+    # Experiment 1 (rerun): source-only change against final Dockerfile
     @app.route("/health")
     def health():
         return jsonify(status="ok", cache_test="experiment 1"), 200
