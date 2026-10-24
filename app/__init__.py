@@ -6,7 +6,7 @@ def create_app():
 
     @app.route("/health")
     def health():
-        return jsonify(status="ok"), 200
+        return jsonify(status="ok", cache_test="experiment 1"), 200
 
     @app.route("/new-feature")
     def new_feature():
