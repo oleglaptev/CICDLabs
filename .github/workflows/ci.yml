@@ -7,6 +7,10 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-test:
     # 2
@@ -41,6 +45,34 @@ jobs:
       # 8
       - name: Build step (syntax check)
         run: python -m py_compile app/*.py
+
+      # 10. Настройка Buildx
+      - name: Настройка Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 11. Определение короткого SHA
+      - name: Определение короткого SHA
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      # 12. Определение имени образа для GHCR (в нижнем регистре!)
+
+      - name: Определение имени образа
+        run: |
+          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_NAME=ghcr.io/${REPO_NAME}" >> "$GITHUB_ENV"
+
+      # 13. Сборка образа (без публикации) с кэшированием слоёв
+      - name: Сборка образа с кэшированием слоёв
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: |
+            myapp:${{ env.SHORT_SHA }}
+            ${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       # 9
       - name: Upload coverage report
