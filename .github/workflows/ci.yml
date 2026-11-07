@@ -1,6 +1,7 @@
+# ci-lab-3/.github/workflows/ci.uml
 name: CI Pipeline
 
-# 1
+
 on:
   push:
     branches: [ main ]
@@ -12,57 +13,79 @@ permissions:
   packages: write
 
 jobs:
-  build-and-test:
-    # 2
+  unit-tests:
     runs-on: ubuntu-latest
-
     steps:
-      # 3
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 4
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
-      # 5
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 6
       - name: Run linter (flake8)
         run: flake8 app tests
 
-      # 7
-      - name: Run tests with coverage
-        run: pytest
+      - name: Run unit tests with coverage
+        run: pytest tests/unit/ --cov=app --cov-report=term --cov-report=xml --cov-fail-under=80
 
-      # 8
       - name: Build step (syntax check)
         run: python -m py_compile app/*.py
 
-      # 10. Настройка Buildx
-      - name: Настройка Buildx
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  integration-tests:
+    needs: [ unit-tests ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run integration tests (parallel)
+        run: pytest tests/integration/ -v -n auto
+
+  build-scan-publish:
+    needs: [ unit-tests, integration-tests ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 11. Определение короткого SHA
-      - name: Определение короткого SHA
+      - name: Determine short SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
 
-      # 12. Определение имени образа для GHCR (в нижнем регистре!)
-
-      - name: Определение имени образа
+      - name: Determine image name (lowercase)
         run: |
           REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           echo "IMAGE_NAME=ghcr.io/${REPO_NAME}" >> "$GITHUB_ENV"
 
-      # 13. Сборка образа (без публикации) с кэшированием слоёв
-      - name: Сборка образа с кэшированием слоёв
+      - name: Build image with layer caching
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -74,7 +97,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 14. Полное сканирование уязвимостей (сохраняем как артефакт для истории)
       - name: Scan image with Trivy (Full Report)
         uses: aquasecurity/trivy-action@master
         if: always()
@@ -91,7 +113,6 @@ jobs:
           name: trivy-report
           path: trivy-report.txt
 
-      # 15. Строгая проверка (Quality Gate)
       - name: Trivy Quality Gate (Fail on HIGH/CRITICAL with fixes)
         uses: aquasecurity/trivy-action@master
         with:
@@ -101,7 +122,6 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
-      # 16. Генерация SBOM (выбираем формат CycloneDX в JSON)
       - name: Generate SBOM (CycloneDX)
         uses: aquasecurity/trivy-action@master
         with:
@@ -114,7 +134,7 @@ jobs:
         with:
           name: sbom
           path: sbom.cdx.json
-      # 17. Авторизация в GHCR
+
       - name: Login to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
@@ -123,15 +143,76 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 18. Публикация (пушим уже собранный образ)
       - name: Push image to GHCR
         if: github.ref == 'refs/heads/main'
         run: docker push ${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
 
-      # 9
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        if: always()
+  promote-to-staging:
+    needs: [ build-scan-publish ]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Determine short SHA
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Determine image names (lowercase)
+        run: |
+          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_NAME=ghcr.io/${REPO_NAME}" >> "$GITHUB_ENV"
+          echo "STAGING_IMAGE_NAME=ghcr.io/${REPO_NAME}-staging" >> "$GITHUB_ENV"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          name: coverage-report
-          path: coverage.xml
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy image to staging (skopeo, без пересборки)
+        run: |
+          skopeo copy \
+            docker://${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }} \
+            docker://${{ env.STAGING_IMAGE_NAME }}:${{ env.SHORT_SHA }}
+
+      - name: Verify image in staging (skopeo inspect)
+        run: |
+          skopeo inspect docker://${{ env.STAGING_IMAGE_NAME }}:${{ env.SHORT_SHA }}
+
+  update-manifest:
+    needs: [ promote-to-staging ]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine short SHA
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Determine staging image name (lowercase)
+        run: |
+          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "STAGING_IMAGE_NAME=ghcr.io/${REPO_NAME}-staging" >> "$GITHUB_ENV"
+
+      - name: Install yq
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Update image tag and commit (GitOps)
+        run: |
+          yq -i ".spec.template.spec.containers[0].image = \"${{ env.STAGING_IMAGE_NAME }}:${{ env.SHORT_SHA }}\"" k8s-manifests/staging/deployment.yaml
+          git config user.email "ci-bot@example.com"
+          git config user.name "CI Bot"
+          git add k8s-manifests/staging/deployment.yaml
+          if git diff --cached --quiet; then
+            echo "Manifest already points to ${{ env.SHORT_SHA }} - nothing to commit"
+          else
+            git commit -m "Deploy ${{ env.SHORT_SHA }} to staging"
+            git push
+          fi
