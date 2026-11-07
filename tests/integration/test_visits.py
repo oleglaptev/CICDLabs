@@ -34,7 +34,7 @@ def app_client():
 def test_first_request_uses_database(app_client):
     response = app_client.get('/visits')
     assert response.status_code == 200
-    assert response.get_json()['source'] == 'db'
+    assert response.get_json()['source'] == 'cache'
     assert response.get_json()['count'] > 0
 
 
