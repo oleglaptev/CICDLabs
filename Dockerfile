@@ -40,6 +40,8 @@ FROM python:3.11-slim AS runtime
 
 WORKDIR /app
 
+
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 # 1. HARDENING: базовый образ python:3.11-slim несёт pip/setuptools/wheel,
 #    которые в runtime не нужны, но содержат уязвимые vendored-зависимости.
 #    Удаляем их полностью (минус ~25 МБ и минус 2 HIGH-уязвимости).
