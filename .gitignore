@@ -1,3 +1,4 @@
+# ci-lab-3/.gitignore
 venv/
 __pycache__/
 .pytest_cache/
@@ -8,3 +9,4 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+.mypy_cache/

@@ -1,3 +1,4 @@
+# ci-lab-3/app/__init__.py
 from flask import Flask, jsonify
 
 

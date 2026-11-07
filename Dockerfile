@@ -1,3 +1,4 @@
+# ci-lab-3/Dockerfile
 # ==========================================
 # STAGE 1: Builder (полный образ языка, согласно методичке 5.1.1)
 # ==========================================
@@ -38,6 +39,9 @@ RUN set -eux; \
 FROM python:3.11-slim AS runtime
 
 WORKDIR /app
+
+
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
 # 1. HARDENING: базовый образ python:3.11-slim несёт pip/setuptools/wheel,
 #    которые в runtime не нужны, но содержат уязвимые vendored-зависимости.
