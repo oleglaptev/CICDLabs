@@ -1,4 +1,4 @@
-# ci-lab-3/run.py
+# lab-4/run.py
 from app import create_app
 
 

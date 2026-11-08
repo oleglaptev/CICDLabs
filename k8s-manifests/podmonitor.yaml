@@ -1,0 +1,19 @@
+# lab-4/k8s-manifests/podmonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: myapp
+  namespace: staging
+  labels:
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+    - staging
+  selector:
+    matchLabels:
+      app: myapp
+  podMetricsEndpoints:
+  - targetPort: 3000
+    path: /metrics
+    interval: 15s

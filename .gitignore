@@ -1,4 +1,4 @@
-# ci-lab-3/.gitignore
+# lab-4/.gitignore
 venv/
 __pycache__/
 .pytest_cache/
