@@ -1,4 +1,4 @@
-# ci-lab-3/app/visits.py
+# lab-4/app/visits.py
 from flask import Blueprint, jsonify
 import redis as redis_lib
 

@@ -72,7 +72,12 @@ COPY run.py .
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 5000
+# Поддержка флага поломки для демонстрации отката
+ARG CHAOS_MODE=false
+ENV CHAOS_MODE=$CHAOS_MODE
 
-# 5. Запуск приложения через production WSGI-сервер
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "run:app"]
+# Порт 3000 для всех манифестов K8s
+EXPOSE 3000
+
+# Запуск gunicorn на порту 3000
+CMD ["gunicorn", "--bind", "0.0.0.0:3000", "run:app"]

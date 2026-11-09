@@ -1,4 +1,4 @@
-# ci-lab-3/tests/integration/test_visits.py
+# lab-4/tests/integration/test_visits.py
 import pytest
 import psycopg2
 from testcontainers.postgres import PostgresContainer

@@ -1,4 +1,4 @@
-# ci-lab-3/k8s-manifests/staging/deployment.yaml
+# lab-4/k8s-manifests/staging/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
