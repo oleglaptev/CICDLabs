@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
         - name: cicdlabs
-          image: ghcr.io/oleglaptev/cicdlabs-staging:ee7caba
+          image: ghcr.io/oleglaptev/cicdlabs-staging:daa4e33
           ports:
             - containerPort: 5000
